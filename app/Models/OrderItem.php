@@ -30,7 +30,7 @@ class OrderItem extends Model
 
     public function cupSize()
     {
-        return $this->belongsTo(CupSize::class);
+        return $this->belongsTo(Cupsize::class);
     }
 
 
