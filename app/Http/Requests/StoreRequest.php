@@ -25,10 +25,10 @@ class StoreRequest extends FormRequest
         return [
             'notes'                    => 'nullable|string|max:500',
             'items'                    => 'required|array|min:1',
-            'items.*.cup_size_id'      => 'required|exists:cup_sizes,id',
-            'items.*.water_type_id'    => 'required|exists:water_types,id',
+            'items.*.cup_size_id'      => 'required|integer|exists:cup_sizes,id',
+            'items.*.water_type_id'    => 'required|integer|exists:water_types,id',
             'items.*.extra_ids'        => 'nullable|array',
-            'items.*.extra_ids.*'      => 'exists:extras,id',
+            'items.*.extra_ids.*'      => 'integer|exists:extras,id',
             'items.*.quantity'         => 'required|integer|min:1',
         ];
     }

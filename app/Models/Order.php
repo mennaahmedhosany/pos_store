@@ -27,6 +27,13 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public static function generateOrderNumber(): string
+    {
+        $last = self::latest('id')->value('order_number');
+        $next = $last ? (int) substr($last, 4) + 1 : 1;
+        return 'ORD-' . str_pad($next, 4, '0', STR_PAD_LEFT);
+    }
+
     // Scopes
     public function scopePending($query)
     {

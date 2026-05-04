@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('order_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_id')->constrained('order')->cascadeOnDelete();
             $table->foreignId('cup_size_id')->constrained('cup_sizes');
             $table->foreignId('water_type_id')->constrained('water_types');
             $table->integer('quantity')->default(1);

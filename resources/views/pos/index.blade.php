@@ -72,7 +72,7 @@
                 <span style="color:var(--muted);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Qty</span>
                 <button class="qty-btn" id="qty-minus" type="button">−</button>
                 <span class="qty-num" id="qty-display">1</span>
-                <button class="qty-btn" id="qty-plus"  type="button">+</button>
+                <button class="qty-btn" id="qty-plus" type="button">+</button>
             </div>
 
             <div style="text-align:right;">
@@ -139,129 +139,148 @@
 
 @push('scripts')
 <script>
-const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
-// ── State ────────────────────────────────────────────────
-let cur = {
-    sizeId:null, sizeName:'', sizeVol:'', sizePrice:0,
-    waterId:null, waterName:'', waterPrice:0,
-    extraIds: new Set(), extraNames:{}, extraPrices:{},
-    qty: 1,
-};
-let orderItems = [];
+    // ── State ────────────────────────────────────────────────
+    let cur = {
+        sizeId: null,
+        sizeName: '',
+        sizeVol: '',
+        sizePrice: 0,
+        waterId: null,
+        waterName: '',
+        waterPrice: 0,
+        extraIds: new Set(),
+        extraNames: {},
+        extraPrices: {},
+        qty: 1,
+    };
+    let orderItems = [];
 
-// ── Selection ────────────────────────────────────────────
-document.querySelectorAll('[data-type="size"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-type="size"]').forEach(b => b.classList.remove('sel'));
-        btn.classList.add('sel');
-        cur.sizeId    = btn.dataset.id;
-        cur.sizeName  = btn.dataset.name;
-        cur.sizeVol   = btn.dataset.vol;
-        cur.sizePrice = parseFloat(btn.dataset.price);
-        refreshTotal();
-    });
-});
-
-document.querySelectorAll('[data-type="water"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-type="water"]').forEach(b => b.classList.remove('sel'));
-        btn.classList.add('sel');
-        cur.waterId    = btn.dataset.id;
-        cur.waterName  = btn.dataset.name;
-        cur.waterPrice = parseFloat(btn.dataset.price);
-        refreshTotal();
-    });
-});
-
-document.querySelectorAll('[data-type="extra"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        if (cur.extraIds.has(id)) {
-            cur.extraIds.delete(id);
-            btn.classList.remove('sel');
-        } else {
-            cur.extraIds.add(id);
-            cur.extraNames[id]  = btn.dataset.name;
-            cur.extraPrices[id] = parseFloat(btn.dataset.price);
+    // ── Selection ────────────────────────────────────────────
+    document.querySelectorAll('[data-type="size"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-type="size"]').forEach(b => b.classList.remove('sel'));
             btn.classList.add('sel');
+            cur.sizeId = btn.dataset.id;
+            cur.sizeName = btn.dataset.name;
+            cur.sizeVol = btn.dataset.vol;
+            cur.sizePrice = parseFloat(btn.dataset.price);
+            refreshTotal();
+        });
+    });
+
+    document.querySelectorAll('[data-type="water"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-type="water"]').forEach(b => b.classList.remove('sel'));
+            btn.classList.add('sel');
+            cur.waterId = btn.dataset.id;
+            cur.waterName = btn.dataset.name;
+            cur.waterPrice = parseFloat(btn.dataset.price);
+            refreshTotal();
+        });
+    });
+
+    document.querySelectorAll('[data-type="extra"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (cur.extraIds.has(id)) {
+                cur.extraIds.delete(id);
+                btn.classList.remove('sel');
+            } else {
+                cur.extraIds.add(id);
+                cur.extraNames[id] = btn.dataset.name;
+                cur.extraPrices[id] = parseFloat(btn.dataset.price);
+                btn.classList.add('sel');
+            }
+            refreshTotal();
+        });
+    });
+
+    // ── Quantity ─────────────────────────────────────────────
+    document.getElementById('qty-minus').addEventListener('click', () => {
+        if (cur.qty > 1) {
+            cur.qty--;
+            document.getElementById('qty-display').textContent = cur.qty;
+            refreshTotal();
         }
-        refreshTotal();
     });
-});
-
-// ── Quantity ─────────────────────────────────────────────
-document.getElementById('qty-minus').addEventListener('click', () => {
-    if (cur.qty > 1) { cur.qty--; document.getElementById('qty-display').textContent = cur.qty; refreshTotal(); }
-});
-document.getElementById('qty-plus').addEventListener('click', () => {
-    if (cur.qty < 99) { cur.qty++; document.getElementById('qty-display').textContent = cur.qty; refreshTotal(); }
-});
-
-// ── Refresh item total preview ───────────────────────────
-function refreshTotal() {
-    const addBtn = document.getElementById('add-item-btn');
-    const totalEl = document.getElementById('item-total-display');
-
-    if (!cur.sizeId || !cur.waterId) {
-        totalEl.textContent = '— EGP';
-        addBtn.disabled = true;
-        return;
-    }
-
-    const extrasSum = [...cur.extraIds].reduce((s, id) => s + cur.extraPrices[id], 0);
-    const unit = cur.sizePrice + cur.waterPrice + extrasSum;
-    const line = unit * cur.qty;
-    totalEl.textContent = fmt(line) + ' EGP';
-    addBtn.disabled = false;
-}
-
-// ── Add item to receipt ──────────────────────────────────
-document.getElementById('add-item-btn').addEventListener('click', () => {
-    const extrasArr  = [...cur.extraIds].map(id => ({ id, name: cur.extraNames[id], price: cur.extraPrices[id] }));
-    const extrasSum  = extrasArr.reduce((s, e) => s + e.price, 0);
-    const unitPrice  = cur.sizePrice + cur.waterPrice + extrasSum;
-    const lineTotal  = unitPrice * cur.qty;
-
-    orderItems.push({
-        cup_size_id:   cur.sizeId,
-        water_type_id: cur.waterId,
-        extra_ids:     [...cur.extraIds],
-        quantity:      cur.qty,
-        // display
-        _cup:      `${cur.sizeName} · ${cur.sizeVol}`,
-        _water:    cur.waterName,
-        _extras:   extrasArr.map(e => e.name),
-        _unit:     unitPrice,
-        _line:     lineTotal,
-        _qty:      cur.qty,
+    document.getElementById('qty-plus').addEventListener('click', () => {
+        if (cur.qty < 99) {
+            cur.qty++;
+            document.getElementById('qty-display').textContent = cur.qty;
+            refreshTotal();
+        }
     });
 
-    renderReceipt();
-    resetCurrent();
-});
+    // ── Refresh item total preview ───────────────────────────
+    function refreshTotal() {
+        const addBtn = document.getElementById('add-item-btn');
+        const totalEl = document.getElementById('item-total-display');
 
-// ── Render receipt ───────────────────────────────────────
-function renderReceipt() {
-    const empty  = document.getElementById('receipt-empty');
-    const list   = document.getElementById('receipt-items');
-    const footer = document.getElementById('receipt-footer');
-    const count  = document.getElementById('receipt-count');
+        if (!cur.sizeId || !cur.waterId) {
+            totalEl.textContent = '— EGP';
+            addBtn.disabled = true;
+            return;
+        }
 
-    count.textContent = orderItems.length + ' item' + (orderItems.length !== 1 ? 's' : '');
-
-    if (orderItems.length === 0) {
-        empty.style.display  = 'block';
-        list.style.display   = 'none';
-        footer.style.display = 'none';
-        return;
+        const extrasSum = [...cur.extraIds].reduce((s, id) => s + cur.extraPrices[id], 0);
+        const unit = cur.sizePrice + cur.waterPrice + extrasSum;
+        const line = unit * cur.qty;
+        totalEl.textContent = fmt(line) + ' EGP';
+        addBtn.disabled = false;
     }
 
-    empty.style.display  = 'none';
-    list.style.display   = 'flex';
-    footer.style.display = 'block';
+    // ── Add item to receipt ──────────────────────────────────
+    document.getElementById('add-item-btn').addEventListener('click', () => {
+        const extrasArr = [...cur.extraIds].map(id => ({
+            id,
+            name: cur.extraNames[id],
+            price: cur.extraPrices[id]
+        }));
+        const extrasSum = extrasArr.reduce((s, e) => s + e.price, 0);
+        const unitPrice = cur.sizePrice + cur.waterPrice + extrasSum;
+        const lineTotal = unitPrice * cur.qty;
 
-    list.innerHTML = orderItems.map((item, idx) => `
+        orderItems.push({
+            cup_size_id: cur.sizeId,
+            water_type_id: cur.waterId,
+            extra_ids: [...cur.extraIds],
+            quantity: cur.qty,
+            // display
+            _cup: `${cur.sizeName} · ${cur.sizeVol}`,
+            _water: cur.waterName,
+            _extras: extrasArr.map(e => e.name),
+            _unit: unitPrice,
+            _line: lineTotal,
+            _qty: cur.qty,
+        });
+
+        renderReceipt();
+        resetCurrent();
+    });
+
+    // ── Render receipt ───────────────────────────────────────
+    function renderReceipt() {
+        const empty = document.getElementById('receipt-empty');
+        const list = document.getElementById('receipt-items');
+        const footer = document.getElementById('receipt-footer');
+        const count = document.getElementById('receipt-count');
+
+        count.textContent = orderItems.length + ' item' + (orderItems.length !== 1 ? 's' : '');
+
+        if (orderItems.length === 0) {
+            empty.style.display = 'block';
+            list.style.display = 'none';
+            footer.style.display = 'none';
+            return;
+        }
+
+        empty.style.display = 'none';
+        list.style.display = 'flex';
+        footer.style.display = 'block';
+
+        list.innerHTML = orderItems.map((item, idx) => `
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;animation:fadeIn 0.2s ease both;">
             <button onclick="removeItem(${idx})" class="btn btn-danger" style="position:absolute;top:8px;right:8px;padding:2px 7px;font-size:11px;cursor:pointer;">✕</button>
             <div style="font-weight:500;color:var(--text);font-size:12px;padding-right:36px;">${item._cup}</div>
@@ -274,75 +293,92 @@ function renderReceipt() {
         </div>
     `).join('');
 
-    const total = orderItems.reduce((s, i) => s + i._line, 0);
-    document.getElementById('r-subtotal').textContent = fmt(total) + ' EGP';
-    document.getElementById('r-total').textContent    = fmt(total) + ' EGP';
-}
-
-function removeItem(idx) {
-    orderItems.splice(idx, 1);
-    renderReceipt();
-}
-
-// ── Reset current item builder ───────────────────────────
-function resetCurrent() {
-    cur = { sizeId:null, sizeName:'', sizeVol:'', sizePrice:0, waterId:null, waterName:'', waterPrice:0, extraIds:new Set(), extraNames:{}, extraPrices:{}, qty:1 };
-    document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('sel'));
-    document.getElementById('qty-display').textContent    = 1;
-    document.getElementById('item-total-display').textContent = '— EGP';
-    document.getElementById('add-item-btn').disabled = true;
-}
-
-// ── Confirm order  (POST /orders) ────────────────────────
-document.getElementById('confirm-btn').addEventListener('click', async () => {
-    if (!orderItems.length) return;
-
-    const btn = document.getElementById('confirm-btn');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-
-    try {
-        const res  = await fetch('{{ route("pos.store") }}', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-            body:    JSON.stringify({
-                notes: document.getElementById('order-notes').value,
-                items: orderItems.map(i => ({
-                    cup_size_id:   i.cup_size_id,
-                    water_type_id: i.water_type_id,
-                    extra_ids:     i.extra_ids,
-                    quantity:      i.quantity,
-                })),
-            }),
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showToast('✓ ' + data.message, 'success');
-            orderItems = [];
-            renderReceipt();
-            document.getElementById('order-notes').value = '';
-            resetCurrent();
-        } else {
-            showToast(data.message || 'Something went wrong.', 'error');
-        }
-    } catch {
-        showToast('Network error. Please try again.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Confirm Order';
+        const total = orderItems.reduce((s, i) => s + i._line, 0);
+        document.getElementById('r-subtotal').textContent = fmt(total) + ' EGP';
+        document.getElementById('r-total').textContent = fmt(total) + ' EGP';
     }
-});
 
-// ── Clear full order ─────────────────────────────────────
-document.getElementById('reset-btn').addEventListener('click', () => {
-    orderItems = [];
-    renderReceipt();
-    resetCurrent();
-    document.getElementById('order-notes').value = '';
-});
+    function removeItem(idx) {
+        orderItems.splice(idx, 1);
+        renderReceipt();
+    }
 
-function fmt(n) { return parseFloat(n).toFixed(2); }
+    // ── Reset current item builder ───────────────────────────
+    function resetCurrent() {
+        cur = {
+            sizeId: null,
+            sizeName: '',
+            sizeVol: '',
+            sizePrice: 0,
+            waterId: null,
+            waterName: '',
+            waterPrice: 0,
+            extraIds: new Set(),
+            extraNames: {},
+            extraPrices: {},
+            qty: 1
+        };
+        document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('sel'));
+        document.getElementById('qty-display').textContent = 1;
+        document.getElementById('item-total-display').textContent = '— EGP';
+        document.getElementById('add-item-btn').disabled = true;
+    }
+
+    // ── Confirm order  (POST /orders) ────────────────────────
+    document.getElementById('confirm-btn').addEventListener('click', async () => {
+        if (!orderItems.length) return;
+
+        const btn = document.getElementById('confirm-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        try {
+            const res = await fetch('{{ route("pos.store") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF
+                },
+                body: JSON.stringify({
+                    notes: document.getElementById('order-notes').value,
+                    items: orderItems.map(i => ({
+                        cup_size_id: parseInt(i.cup_size_id), // ← cast
+                        water_type_id: parseInt(i.water_type_id), // ← cast
+                        extra_ids: i.extra_ids.map(id => parseInt(id)), // ← cast
+                        quantity: parseInt(i.quantity), // ← cast
+                    })),
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast('✓ ' + data.message, 'success');
+                orderItems = [];
+                renderReceipt();
+                document.getElementById('order-notes').value = '';
+                resetCurrent();
+            } else {
+                showToast(data.message || 'Something went wrong.', 'error');
+            }
+        } catch {
+            showToast('Network error. Please try again.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Confirm Order';
+        }
+    });
+
+    // ── Clear full order ─────────────────────────────────────
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        orderItems = [];
+        renderReceipt();
+        resetCurrent();
+        document.getElementById('order-notes').value = '';
+    });
+
+    function fmt(n) {
+        return parseFloat(n).toFixed(2);
+    }
 </script>
 @endpush
